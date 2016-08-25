@@ -261,9 +261,6 @@ class DirentDirNode : public DirentNode {
                        vector<string>& out) const override {
     ScopedReadDirTracker srdt(this, *path, cur_read_dirs);
     if (!srdt.ok()) {
-      WARN_LOC(loc, "FindEmulator: find: File system loop detected; `%s' "
-               "is part of the same file system loop as `%s'.",
-               path->c_str(), srdt.conflicted().c_str());
       return true;
     }
 
@@ -367,10 +364,6 @@ class DirentSymlinkNode : public DirentNode {
     unsigned char type = DT_LNK;
     if (fc.follows_symlinks && errno_ != ENOENT) {
       if (errno_) {
-        if (fc.type != FindCommandType::FINDLEAVES) {
-          WARN_LOC(loc, "FindEmulator: find: `%s': %s",
-                   path->c_str(), strerror(errno_));
-        }
         return true;
       }
 
@@ -823,13 +816,7 @@ class FindEmulatorImpl : public FindEmulator {
       }
       bool should_fallback = false;
       if (!FindDir(fc.chdir, &should_fallback)) {
-        if (should_fallback)
-          return false;
-        if (!fc.redirect_to_devnull) {
-          WARN_LOC(loc, "FindEmulator: cd: %.*s: No such file or directory",
-                   SPF(fc.chdir));
-        }
-        return true;
+        return !should_fallback;
       }
     }
 
@@ -848,10 +835,6 @@ class FindEmulatorImpl : public FindEmulator {
       if (!base) {
         if (should_fallback) {
           return false;
-        }
-        if (!fc.redirect_to_devnull) {
-          WARN_LOC(loc, "FindEmulator: find: `%s': No such file or directory",
-                   ConcatDir(fc.chdir, finddir).c_str());
         }
         continue;
       }
